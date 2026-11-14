@@ -330,6 +330,11 @@ app.MapDelete("/api/equipment/{id}", async (
 // START APPLICATION
 // ============================================
 
+app.MapGet("/health", () =>
+{
+    return Results.Ok(new { status = "ok" });
+});
+
 app.Run();
 
 // Required for WebApplicationFactory tests
