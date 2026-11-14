@@ -1,4 +1,3 @@
-
 using MongoDB.Bson;
 using MongoDB.Driver;
 using ToolLoop.Api.Models;
@@ -13,7 +12,7 @@ public class MongoEquipmentRepository : IEquipmentRepository
     public MongoEquipmentRepository(IConfiguration configuration)
     {
         var connectionString =
-            configuration["MongoDB:ConnectionString"];
+        configuration["MongoDB:ConnectionString"]?.Trim();
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
