@@ -1,0 +1,6 @@
+@ToolLoop.Api_HostAddress = http://localhost:5117
+
+GET {{ToolLoop.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

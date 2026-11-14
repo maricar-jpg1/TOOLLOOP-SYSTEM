@@ -1,0 +1,17 @@
+# .NET
+**/bin/
+**/obj/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Node
+**/node_modules/
+**/dist/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
