@@ -1,6 +1,5 @@
 
 using MongoDB.Bson;
-using MongoDB.Driver;
 using ToolLoop.Api.Models;
 using ToolLoop.Api.Repositories;
 
@@ -16,15 +15,19 @@ builder.Services.AddScoped<IEquipmentRepository, MongoEquipmentRepository>();
 // CORS CONFIGURATION
 // ============================================
 
+var allowedOrigins = new[]
+{
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://toolloop-system.netlify.app"
+};
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173"
-            )
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -51,6 +54,15 @@ app.MapGet("/api/health", () =>
     });
 });
 
+// Also support the standard /health path
+app.MapGet("/health", () =>
+{
+    return Results.Ok(new
+    {
+        status = "ok"
+    });
+});
+
 // ============================================
 // TEST MONGODB CONNECTION
 // ============================================
@@ -67,11 +79,11 @@ app.MapGet("/api/db-test", async (IEquipmentRepository repository) =>
             database = "toolLoopDb"
         });
     }
-    catch (Exception ex)
+    catch (Exception)
     {
         return Results.Problem(
             title: "MongoDB connection failed",
-            detail: ex.Message,
+            detail: "Unable to connect to the database. Check the server configuration.",
             statusCode: 500
         );
     }
@@ -86,13 +98,14 @@ app.MapGet("/api/equipment", async (IEquipmentRepository repository) =>
     try
     {
         var equipment = await repository.GetAllAsync();
+
         return Results.Ok(equipment);
     }
-    catch (Exception ex)
+    catch (Exception)
     {
         return Results.Problem(
             title: "Failed to retrieve equipment",
-            detail: ex.Message,
+            detail: "An error occurred while retrieving equipment.",
             statusCode: 500
         );
     }
@@ -128,11 +141,11 @@ app.MapGet("/api/equipment/{id}", async (
 
         return Results.Ok(equipment);
     }
-    catch (Exception ex)
+    catch (Exception)
     {
         return Results.Problem(
             title: "Failed to retrieve equipment",
-            detail: ex.Message,
+            detail: "An error occurred while retrieving the equipment.",
             statusCode: 500
         );
     }
@@ -182,11 +195,11 @@ app.MapPost("/api/equipment", async (
             savedEquipment
         );
     }
-    catch (Exception ex)
+    catch (Exception)
     {
         return Results.Problem(
             title: "Failed to save equipment",
-            detail: ex.Message,
+            detail: "An error occurred while saving the equipment.",
             statusCode: 500
         );
     }
@@ -258,6 +271,7 @@ app.MapPut("/api/equipment/{id}", async (
         }
 
         updatedEquipment.Id = id;
+
         updatedEquipment.AvailableQuantity =
             updatedEquipment.Quantity - borrowedQuantity;
 
@@ -273,11 +287,11 @@ app.MapPut("/api/equipment/{id}", async (
 
         return Results.Ok(result);
     }
-    catch (Exception ex)
+    catch (Exception)
     {
         return Results.Problem(
             title: "Failed to update equipment",
-            detail: ex.Message,
+            detail: "An error occurred while updating the equipment.",
             statusCode: 500
         );
     }
@@ -316,11 +330,11 @@ app.MapDelete("/api/equipment/{id}", async (
             message = "Equipment deleted successfully."
         });
     }
-    catch (Exception ex)
+    catch (Exception)
     {
         return Results.Problem(
             title: "Failed to delete equipment",
-            detail: ex.Message,
+            detail: "An error occurred while deleting the equipment.",
             statusCode: 500
         );
     }
@@ -329,11 +343,6 @@ app.MapDelete("/api/equipment/{id}", async (
 // ============================================
 // START APPLICATION
 // ============================================
-
-app.MapGet("/health", () =>
-{
-    return Results.Ok(new { status = "ok" });
-});
 
 app.Run();
 

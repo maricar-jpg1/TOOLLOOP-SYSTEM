@@ -26,8 +26,7 @@ public class MongoEquipmentRepository : IEquipmentRepository
 
         _database = client.GetDatabase("toolLoopDb");
 
-        _collection =
-            _database.GetCollection<Equipment>("equipment");
+        _collection = _database.GetCollection<Equipment>("equipment");
     }
 
     public async Task<List<Equipment>> GetAllAsync()
@@ -47,6 +46,7 @@ public class MongoEquipmentRepository : IEquipmentRepository
     public async Task<Equipment> AddAsync(Equipment equipment)
     {
         await _collection.InsertOneAsync(equipment);
+
         return equipment;
     }
 
