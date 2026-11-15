@@ -68,7 +68,6 @@ Configure these variables locally and in the appropriate hosting dashboards. The
 | Name | What it is for | Example value |
 |---|---|---|
 | VITE_API_URL | Frontend address of the backend API | http://localhost:5000 |
-| MONGODB_URI | Backend connection to MongoDB Atlas | YOUR_MONGODB_CONNECTION_STRING |
 | CLIENT_URL | Allowed frontend origin for backend CORS | https://example.netlify.app |
 
 **Security:** Never commit real passwords, database connection strings, or API keys to GitHub. Keep secrets in local environment files or hosting environment settings. Use fake values in `.env.example`.
