@@ -1,29 +1,28 @@
-# ToolLoop – Equipment Borrowing and Management System
+# Project Name
 
-## Project Name
-
-**ToolLoop** is a web-based equipment borrowing and management system that helps users view available equipment and manage equipment borrowing records.
+ToolLoop is a web-based equipment borrowing and management system that helps users view available equipment and manage equipment borrowing records.
 
 ## Live Links
 
 - **Frontend:** https://tooloop-system.netlify.app/
-- **Backend API:** https://toolloop-system.onrender.com
-- **Health Check:** https://toolloop-system.onrender.com/api/health
+- **Backend health check:** https://toolloop-system.onrender.com/api/health
 
 ## Team
 
-- [Team Member 1]
-- [Team Member 2]
+| Member | Role |
+|---|---|
+| [Ailyn Albesa] | [Frontend] |
+| [Maricar Ofenia] | [Backend] |
 
 ## Tech Stack
 
-- **Frontend:** React and Vite
-- **Backend:** ASP.NET Core Web API (.NET 10)
-- **Database:** MongoDB Atlas
-- **Frontend Hosting:** Netlify
-- **Backend Hosting:** Render
-- **Version Control:** Git and GitHub
-- **CI/CD:** GitHub Actions
+| Part | Technology | Hosted on |
+|---|---|---|
+| Frontend | React and Vite | Netlify |
+| Backend | ASP.NET Core Web API (.NET 10) | Render |
+| Database | MongoDB | MongoDB Atlas |
+| Version Control | Git and GitHub | GitHub |
+| CI/CD | GitHub Actions | GitHub Actions |
 
 ## Run It on Your Laptop
 
@@ -41,7 +40,18 @@ git clone https://github.com/maricar-jpg1/TOOLLOOP-SYSTEM.git
 cd TOOLLOOP-SYSTEM
 ```
 
-### 2. Run the frontend
+### 2. Run the backend
+
+Open a terminal in the project root:
+
+```bash
+dotnet restore backend/ToolLoop.Api/ToolLoop.Api.csproj
+dotnet run --project backend/ToolLoop.Api/ToolLoop.Api.csproj
+```
+
+### 3. Run the frontend
+
+Open another terminal in the project root:
 
 ```bash
 cd frontend
@@ -49,66 +59,54 @@ npm install
 npm run dev
 ```
 
-Open the local URL displayed in your terminal.
-
-### 3. Run the backend
-
-Open another terminal from the project root:
-
-```bash
-dotnet restore backend/ToolLoop.Api/ToolLoop.Api.csproj
-dotnet run --project backend/ToolLoop.Api/ToolLoop.Api.csproj
-```
+Open the local URL displayed in the frontend terminal.
 
 ## Environment Variables
 
-Configure environment variables locally and in the hosting platforms.
+Configure these variables locally and in the appropriate hosting dashboards. The example values below are fake.
 
-### Frontend
+| Name | What it is for | Example value |
+|---|---|---|
+| VITE_API_URL | Frontend address of the backend API | http://localhost:5000 |
+| MONGODB_URI | Backend connection to MongoDB Atlas | mongodb+srv://user:FAKE_PASSWORD@example.mongodb.net/toolloop |
+| CLIENT_URL | Allowed frontend origin for backend CORS | https://example.netlify.app |
 
-```env
-VITE_API_URL=http://localhost:5000
-```
-
-For deployment, use the deployed backend API URL.
-
-### Backend
-
-Configure the MongoDB connection string and frontend CORS origin using the exact environment variable names required by the backend configuration.
-
-**Important:** Never commit real passwords, database connection strings, or other secrets to GitHub. Use `.env.example` for sample values only.
+**Security:** Never commit real passwords, database connection strings, or API keys to GitHub. Keep secrets in local environment files or hosting environment settings. Use fake values in `.env.example`.
 
 ## Running the Tests
 
 ### Backend Tests
 
+Run from the project root:
+
 ```bash
 dotnet test backend/ToolLoop.Api.Tests/ToolLoop.Api.Tests.csproj
 ```
 
+Expected: 5 backend tests.
+
 ### Frontend Tests
 
+Run from the frontend folder:
+
 ```bash
-cd frontend
 npm run test:run
 ```
 
-The project has five backend tests and three frontend tests.
+Expected: 3 frontend tests.
 
 ## How CI/CD Works
 
-GitHub Actions automatically runs the project's CI workflow when changes are pushed to the `main` branch or when a pull request targets `main`.
+When a team member pushes code to a branch or opens a pull request targeting `main`, GitHub Actions runs the backend and frontend jobs. The backend job restores its dependencies and runs the backend tests, while the frontend job installs dependencies, runs frontend tests, and builds the application. After the required checks pass and the pull request is approved and merged, Render deploys the backend after CI checks pass, while Netlify deploys the frontend from `main`.
 
-The workflow contains two jobs:
-
-- **Backend:** Restores dependencies and runs backend tests.
-- **Frontend:** Installs dependencies, runs frontend tests, and builds the application.
-
-Render Auto-Deploy is configured to deploy after CI checks pass.
+**GitHub Actions:** https://github.com/maricar-jpg1/TOOLLOOP-SYSTEM/actions
 
 ## Diagrams
 
-Insert the project diagrams created by the team:
+### Deployment Architecture
 
-1. System Architecture Diagram
-2. CI/CD Pipeline Diagram
+![Deployment Architecture](docs/architecture.png)
+
+### CI/CD Pipeline
+
+![CI/CD Pipeline](docs/pipeline.png)
