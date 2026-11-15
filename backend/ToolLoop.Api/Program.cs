@@ -66,9 +66,12 @@ app.MapGet("/health", () =>
 
 // ============================================
 // TEST MONGODB CONNECTION
+// Logs the actual exception on the server
 // ============================================
 
-app.MapGet("/api/db-test", async (IEquipmentRepository repository) =>
+app.MapGet("/api/db-test", async (
+    IEquipmentRepository repository,
+    ILogger<Program> logger) =>
 {
     try
     {
@@ -80,11 +83,13 @@ app.MapGet("/api/db-test", async (IEquipmentRepository repository) =>
             database = "toolLoopDb"
         });
     }
-    catch (Exception)
+    catch (Exception ex)
     {
+        logger.LogError(ex, "MongoDB connection test failed.");
+
         return Results.Problem(
             title: "MongoDB connection failed",
-            detail: "Unable to connect to the database. Check the server configuration.",
+            detail: "Unable to connect to the database. Check the server logs.",
             statusCode: 500
         );
     }
@@ -94,7 +99,9 @@ app.MapGet("/api/db-test", async (IEquipmentRepository repository) =>
 // GET ALL EQUIPMENT
 // ============================================
 
-app.MapGet("/api/equipment", async (IEquipmentRepository repository) =>
+app.MapGet("/api/equipment", async (
+    IEquipmentRepository repository,
+    ILogger<Program> logger) =>
 {
     try
     {
@@ -102,8 +109,10 @@ app.MapGet("/api/equipment", async (IEquipmentRepository repository) =>
 
         return Results.Ok(equipment);
     }
-    catch (Exception)
+    catch (Exception ex)
     {
+        logger.LogError(ex, "Failed to retrieve equipment.");
+
         return Results.Problem(
             title: "Failed to retrieve equipment",
             detail: "An error occurred while retrieving equipment.",
@@ -118,7 +127,8 @@ app.MapGet("/api/equipment", async (IEquipmentRepository repository) =>
 
 app.MapGet("/api/equipment/{id}", async (
     string id,
-    IEquipmentRepository repository) =>
+    IEquipmentRepository repository,
+    ILogger<Program> logger) =>
 {
     if (!ObjectId.TryParse(id, out _))
     {
@@ -142,8 +152,10 @@ app.MapGet("/api/equipment/{id}", async (
 
         return Results.Ok(equipment);
     }
-    catch (Exception)
+    catch (Exception ex)
     {
+        logger.LogError(ex, "Failed to retrieve equipment with ID {EquipmentId}.", id);
+
         return Results.Problem(
             title: "Failed to retrieve equipment",
             detail: "An error occurred while retrieving the equipment.",
@@ -158,7 +170,8 @@ app.MapGet("/api/equipment/{id}", async (
 
 app.MapPost("/api/equipment", async (
     Equipment equipment,
-    IEquipmentRepository repository) =>
+    IEquipmentRepository repository,
+    ILogger<Program> logger) =>
 {
     if (string.IsNullOrWhiteSpace(equipment.Name))
     {
@@ -196,8 +209,10 @@ app.MapPost("/api/equipment", async (
             savedEquipment
         );
     }
-    catch (Exception)
+    catch (Exception ex)
     {
+        logger.LogError(ex, "Failed to save new equipment.");
+
         return Results.Problem(
             title: "Failed to save equipment",
             detail: "An error occurred while saving the equipment.",
@@ -213,7 +228,8 @@ app.MapPost("/api/equipment", async (
 app.MapPut("/api/equipment/{id}", async (
     string id,
     Equipment updatedEquipment,
-    IEquipmentRepository repository) =>
+    IEquipmentRepository repository,
+    ILogger<Program> logger) =>
 {
     if (!ObjectId.TryParse(id, out _))
     {
@@ -288,8 +304,10 @@ app.MapPut("/api/equipment/{id}", async (
 
         return Results.Ok(result);
     }
-    catch (Exception)
+    catch (Exception ex)
     {
+        logger.LogError(ex, "Failed to update equipment with ID {EquipmentId}.", id);
+
         return Results.Problem(
             title: "Failed to update equipment",
             detail: "An error occurred while updating the equipment.",
@@ -304,7 +322,8 @@ app.MapPut("/api/equipment/{id}", async (
 
 app.MapDelete("/api/equipment/{id}", async (
     string id,
-    IEquipmentRepository repository) =>
+    IEquipmentRepository repository,
+    ILogger<Program> logger) =>
 {
     if (!ObjectId.TryParse(id, out _))
     {
@@ -331,8 +350,10 @@ app.MapDelete("/api/equipment/{id}", async (
             message = "Equipment deleted successfully."
         });
     }
-    catch (Exception)
+    catch (Exception ex)
     {
+        logger.LogError(ex, "Failed to delete equipment with ID {EquipmentId}.", id);
+
         return Results.Problem(
             title: "Failed to delete equipment",
             detail: "An error occurred while deleting the equipment.",
