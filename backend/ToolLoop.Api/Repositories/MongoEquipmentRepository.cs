@@ -1,3 +1,4 @@
+
 using MongoDB.Bson;
 using MongoDB.Driver;
 using ToolLoop.Api.Models;
@@ -12,7 +13,7 @@ public class MongoEquipmentRepository : IEquipmentRepository
     public MongoEquipmentRepository(IConfiguration configuration)
     {
         var connectionString =
-        configuration["MongoDB:ConnectionString"]?.Trim();
+            configuration["MongoDB:ConnectionString"]?.Trim();
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
@@ -24,15 +25,12 @@ public class MongoEquipmentRepository : IEquipmentRepository
         var client = new MongoClient(connectionString);
 
         _database = client.GetDatabase("toolLoopDb");
-
         _collection = _database.GetCollection<Equipment>("equipment");
     }
 
     public async Task<List<Equipment>> GetAllAsync()
     {
-        return await _collection
-            .Find(_ => true)
-            .ToListAsync();
+        return await _collection.Find(_ => true).ToListAsync();
     }
 
     public async Task<Equipment?> GetByIdAsync(string id)
@@ -45,7 +43,6 @@ public class MongoEquipmentRepository : IEquipmentRepository
     public async Task<Equipment> AddAsync(Equipment equipment)
     {
         await _collection.InsertOneAsync(equipment);
-
         return equipment;
     }
 
