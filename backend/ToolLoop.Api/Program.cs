@@ -1,5 +1,7 @@
 
 using MongoDB.Bson;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using ToolLoop.Api.Models;
 using ToolLoop.Api.Repositories;
 
@@ -66,15 +68,18 @@ app.MapGet("/health", () =>
 
 // ============================================
 // TEST MONGODB CONNECTION
-// Logs the actual exception on the server
+// Resolve repository inside try-catch
 // ============================================
 
 app.MapGet("/api/db-test", async (
-    IEquipmentRepository repository,
+    IServiceProvider services,
     ILogger<Program> logger) =>
 {
     try
     {
+        var repository =
+            services.GetRequiredService<IEquipmentRepository>();
+
         await repository.PingAsync();
 
         return Results.Ok(new
@@ -85,11 +90,14 @@ app.MapGet("/api/db-test", async (
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "MongoDB connection test failed.");
+        logger.LogError(
+            ex,
+            "MongoDB connection test failed."
+        );
 
         return Results.Problem(
             title: "MongoDB connection failed",
-            detail: "Unable to connect to the database. Check the server logs.",
+            detail: "Check the Render server logs for the actual error.",
             statusCode: 500
         );
     }
@@ -154,7 +162,11 @@ app.MapGet("/api/equipment/{id}", async (
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to retrieve equipment with ID {EquipmentId}.", id);
+        logger.LogError(
+            ex,
+            "Failed to retrieve equipment with ID {EquipmentId}.",
+            id
+        );
 
         return Results.Problem(
             title: "Failed to retrieve equipment",
@@ -306,7 +318,11 @@ app.MapPut("/api/equipment/{id}", async (
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to update equipment with ID {EquipmentId}.", id);
+        logger.LogError(
+            ex,
+            "Failed to update equipment with ID {EquipmentId}.",
+            id
+        );
 
         return Results.Problem(
             title: "Failed to update equipment",
@@ -352,7 +368,11 @@ app.MapDelete("/api/equipment/{id}", async (
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to delete equipment with ID {EquipmentId}.", id);
+        logger.LogError(
+            ex,
+            "Failed to delete equipment with ID {EquipmentId}.",
+            id
+        );
 
         return Results.Problem(
             title: "Failed to delete equipment",
