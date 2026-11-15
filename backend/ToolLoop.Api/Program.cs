@@ -8,6 +8,14 @@ using ToolLoop.Api.Repositories;
 var builder = WebApplication.CreateBuilder(args);
 
 // ============================================
+// RENDER PORT CONFIGURATION
+// ============================================
+
+var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
+// ============================================
 // REGISTER REPOSITORY
 // ============================================
 
@@ -68,7 +76,6 @@ app.MapGet("/health", () =>
 
 // ============================================
 // TEST MONGODB CONNECTION
-// Resolve repository inside try-catch
 // ============================================
 
 app.MapGet("/api/db-test", async (
@@ -90,10 +97,7 @@ app.MapGet("/api/db-test", async (
     }
     catch (Exception ex)
     {
-        logger.LogError(
-            ex,
-            "MongoDB connection test failed."
-        );
+        logger.LogError(ex, "MongoDB connection test failed.");
 
         return Results.Problem(
             title: "MongoDB connection failed",
