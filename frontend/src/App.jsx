@@ -4,26 +4,32 @@ import "./App.css";
 
 import Borrowing from "./components/Borrowing";
 import Returns from "./components/Returns";
-import { getEquipment, addEquipment } from "./services/api";
+
+import {
+  getEquipment,
+  addEquipment,
+  updateEquipment,
+  deleteEquipment,
+} from "./services/api";
 
 function App() {
-  // NAVIGATION
   const [activePage, setActivePage] = useState("Dashboard");
 
-  // EQUIPMENT INVENTORY
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  // BORROWING REQUESTS
   const [borrowingRequests, setBorrowingRequests] = useState([]);
 
-  // INVENTORY FORM
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -31,7 +37,6 @@ function App() {
     quantity: "",
   });
 
-  // SIDEBAR NAVIGATION
   const navigation = [
     "Dashboard",
     "Equipment Inventory",
@@ -39,7 +44,7 @@ function App() {
     "Return Management",
   ];
 
-  // LOAD EQUIPMENT FROM MONGODB THROUGH THE API
+  // LOAD EQUIPMENT
   useEffect(() => {
     async function loadEquipment() {
       try {
@@ -51,6 +56,7 @@ function App() {
         setEquipment(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error loading equipment:", error);
+
         setLoadError(
           "Unable to load equipment. Please check your API connection."
         );
@@ -62,13 +68,17 @@ function App() {
     loadEquipment();
   }, []);
 
-  // SEARCH EQUIPMENT
+  // SEARCH
   const filteredEquipment = equipment.filter((item) =>
-    (item.name || "").toLowerCase().includes(search.toLowerCase()) ||
-    (item.category || "").toLowerCase().includes(search.toLowerCase())
+    (item.name || "")
+      .toLowerCase()
+      .includes(search.toLowerCase()) ||
+    (item.category || "")
+      .toLowerCase()
+      .includes(search.toLowerCase())
   );
 
-  // ADD NEW EQUIPMENT TO MONGODB
+  // ADD OR UPDATE EQUIPMENT
   async function handleAddEquipment(e) {
     e.preventDefault();
 
@@ -92,31 +102,51 @@ function App() {
       !Number.isInteger(quantity) ||
       quantity < 1
     ) {
-      setError("Quantity must be a whole number greater than zero.");
+      setError(
+        "Quantity must be a whole number greater than zero."
+      );
       return;
     }
 
     try {
       setSaving(true);
 
-      const newEquipment = {
+      const equipmentData = {
         name: form.name.trim(),
         category: form.category.trim(),
-        quantity: quantity,
+        quantity,
         availableQuantity: quantity,
         description: "",
       };
 
-      // SAVE TO THE BACKEND API
-      const savedEquipment = await addEquipment(newEquipment);
+      if (editingId) {
+        const updated = await updateEquipment(
+          editingId,
+          equipmentData
+        );
 
-      // UPDATE THE FRONTEND WITH THE DATABASE RESPONSE
-      setEquipment((previous) => [
-        ...previous,
-        savedEquipment,
-      ]);
+        setEquipment((previous) =>
+          previous.map((item) =>
+            String(item.id) === String(editingId)
+              ? updated
+              : item
+          )
+        );
 
-      // RESET FORM
+        setSuccess("Equipment updated successfully!");
+      } else {
+        const saved = await addEquipment(equipmentData);
+
+        setEquipment((previous) => [
+          ...previous,
+          saved,
+        ]);
+
+        setSuccess(
+          "Equipment saved successfully to MongoDB!"
+        );
+      }
+
       setForm({
         name: "",
         category: "",
@@ -125,7 +155,8 @@ function App() {
 
       setSearch("");
       setShowForm(false);
-      setSuccess("Equipment saved successfully to MongoDB!");
+      setEditingId(null);
+
     } catch (error) {
       console.error("Error saving equipment:", error);
       setError(error.message || "Unable to save equipment.");
@@ -134,16 +165,72 @@ function App() {
     }
   }
 
+  // EDIT EQUIPMENT
+  function handleEditEquipment(item) {
+    setEditingId(item.id);
+
+    setForm({
+      name: item.name || "",
+      category: item.category || "",
+      quantity: String(item.quantity ?? ""),
+    });
+
+    setError("");
+    setSuccess("");
+    setShowForm(true);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  // DELETE EQUIPMENT
+  async function handleDeleteEquipment(item) {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${item.name}"?`
+    );
+
+    if (!confirmed) return;
+
+    setDeletingId(item.id);
+    setError("");
+    setSuccess("");
+
+    try {
+      await deleteEquipment(item.id);
+
+      setEquipment((previous) =>
+        previous.filter(
+          (record) =>
+            String(record.id) !== String(item.id)
+        )
+      );
+
+      setSuccess("Equipment deleted successfully!");
+
+    } catch (error) {
+      console.error("Error deleting equipment:", error);
+      setError(error.message || "Unable to delete equipment.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   // DASHBOARD STATISTICS
   const totalEquipment = equipment.length;
 
   const totalQuantity = equipment.reduce(
-    (total, item) => total + Number(item.quantity || 0),
+    (total, item) =>
+      total + Number(item.quantity || 0),
     0
   );
 
   const availableEquipment = equipment.filter(
-    (item) => Number(item.availableQuantity ?? item.quantity ?? 0) > 0
+    (item) =>
+      Number(
+        item.availableQuantity ?? item.quantity ?? 0
+      ) > 0
   ).length;
 
   const pendingRequests = borrowingRequests.filter(
@@ -154,12 +241,13 @@ function App() {
     (request) => request.status === "Borrowed"
   ).length;
 
-  // NAVIGATION HANDLER
+  // NAVIGATION
   function handleNavigation(page) {
     setActivePage(page);
     setError("");
     setSuccess("");
     setShowForm(false);
+    setEditingId(null);
     setSearch("");
   }
 
@@ -170,16 +258,12 @@ function App() {
       <aside className="sidebar">
 
         <div className="brand">
-
-          <div className="brand-logo">
-            T
-          </div>
+          <div className="brand-logo">T</div>
 
           <div>
             <h2>ToolLoop</h2>
             <p>Community Equipment</p>
           </div>
-
         </div>
 
         <div className="sidebar-label">
@@ -187,9 +271,7 @@ function App() {
         </div>
 
         <nav className="sidebar-navigation">
-
           {navigation.map((item) => (
-
             <button
               key={item}
               className={
@@ -199,19 +281,12 @@ function App() {
               }
               onClick={() => handleNavigation(item)}
             >
-
               {item === "Dashboard" && "Dashboard"}
-
               {item === "Equipment Inventory" && "Inventory"}
-
               {item === "Borrowing Requests" && "Borrowing"}
-
               {item === "Return Management" && "Returns"}
-
             </button>
-
           ))}
-
         </nav>
 
         <div className="sidebar-bottom">
@@ -224,26 +299,20 @@ function App() {
       {/* MAIN CONTENT */}
       <main className="main-content">
 
-        {/* PAGE HEADER */}
         <header className="top-header">
-
           <div>
-
             <p className="breadcrumb">
               ToolLoop / {activePage}
             </p>
 
             <h1>{activePage}</h1>
-
           </div>
 
           <span className="user-label">
             Community Member
           </span>
-
         </header>
 
-        {/* GLOBAL LOADING AND ERROR MESSAGES */}
         {loading && (
           <p className="success-message">
             Loading equipment...
@@ -256,19 +325,12 @@ function App() {
           </p>
         )}
 
-        {/* ================================= */}
         {/* DASHBOARD */}
-        {/* ================================= */}
-
         {activePage === "Dashboard" && (
-
           <section>
 
-            {/* WELCOME BANNER */}
             <div className="welcome-banner">
-
               <div>
-
                 <p>COMMUNITY EQUIPMENT MANAGEMENT</p>
 
                 <h2>Welcome to ToolLoop!</h2>
@@ -277,7 +339,6 @@ function App() {
                   Share equipment, lend resources, and
                   manage community borrowing activities.
                 </span>
-
               </div>
 
               <button
@@ -287,87 +348,48 @@ function App() {
               >
                 View Equipment
               </button>
-
             </div>
 
-            {/* DASHBOARD STATISTICS */}
             <div className="statistics-grid">
 
               <div className="stat-card">
-
                 <p>Total Equipment</p>
-
                 <h2>{totalEquipment}</h2>
-
-                <small>
-                  Registered equipment types
-                </small>
-
+                <small>Registered equipment types</small>
               </div>
 
               <div className="stat-card">
-
                 <p>Total Available Quantity</p>
-
                 <h2>{totalQuantity}</h2>
-
-                <small>
-                  Total registered equipment units
-                </small>
-
+                <small>Total registered equipment units</small>
               </div>
 
               <div className="stat-card">
-
                 <p>Available Equipment</p>
-
                 <h2>{availableEquipment}</h2>
-
-                <small>
-                  Equipment types in stock
-                </small>
-
+                <small>Equipment types in stock</small>
               </div>
 
               <div className="stat-card">
-
                 <p>Pending Requests</p>
-
                 <h2>{pendingRequests}</h2>
-
-                <small>
-                  Requests awaiting approval
-                </small>
-
+                <small>Requests awaiting approval</small>
               </div>
 
               <div className="stat-card">
-
                 <p>Currently Borrowed</p>
-
                 <h2>{borrowedRequests}</h2>
-
-                <small>
-                  Active borrowing records
-                </small>
-
+                <small>Active borrowing records</small>
               </div>
 
             </div>
 
-            {/* EQUIPMENT OVERVIEW */}
             <div className="content-card">
 
               <div className="section-header">
-
                 <div>
-
                   <h2>Equipment Overview</h2>
-
-                  <p>
-                    Recently registered equipment
-                  </p>
-
+                  <p>Recently registered equipment</p>
                 </div>
 
                 <button
@@ -378,44 +400,29 @@ function App() {
                 >
                   View All
                 </button>
-
               </div>
 
               {equipment.length === 0 ? (
-
                 <div className="empty-message">
-
                   <h3>No equipment found</h3>
-
                   <p>
                     Add equipment to start managing your inventory.
                   </p>
-
                 </div>
-
               ) : (
-
                 <EquipmentTable
                   equipment={equipment.slice(0, 5)}
                 />
-
               )}
 
             </div>
 
-            {/* RECENT BORROWING REQUESTS */}
             <div className="content-card">
 
               <div className="section-header">
-
                 <div>
-
                   <h2>Recent Borrowing Requests</h2>
-
-                  <p>
-                    Latest community borrowing activities
-                  </p>
-
+                  <p>Latest community borrowing activities</p>
                 </div>
 
                 <button
@@ -426,58 +433,50 @@ function App() {
                 >
                   View All
                 </button>
-
               </div>
 
               {borrowingRequests.length === 0 ? (
-
                 <div className="empty-message">
-
                   <h3>No borrowing requests yet</h3>
-
                   <p>
                     Submitted borrowing requests will appear here.
                   </p>
-
                 </div>
-
               ) : (
-
                 <BorrowingTable
-                  requests={borrowingRequests.slice(-5).reverse()}
+                  requests={borrowingRequests
+                    .slice(-5)
+                    .reverse()}
                 />
-
               )}
 
             </div>
 
           </section>
-
         )}
 
-        {/* ================================= */}
         {/* EQUIPMENT INVENTORY */}
-        {/* ================================= */}
-
         {activePage === "Equipment Inventory" && (
-
           <section className="content-card">
 
             <div className="section-header">
-
               <div>
-
                 <h2>Equipment Inventory</h2>
-
-                <p>
-                  Manage community equipment records.
-                </p>
-
+                <p>Manage community equipment records.</p>
               </div>
 
               <button
                 className="add-button"
                 onClick={() => {
+                  if (showForm) {
+                    setEditingId(null);
+                    setForm({
+                      name: "",
+                      category: "",
+                      quantity: "",
+                    });
+                  }
+
                   setShowForm(!showForm);
                   setError("");
                   setSuccess("");
@@ -485,39 +484,31 @@ function App() {
               >
                 {showForm ? "Close Form" : "+ Add Equipment"}
               </button>
-
             </div>
 
-            {/* SUCCESS MESSAGE */}
             {success && (
-
-              <div
-                className="success-message"
-                role="status"
-              >
+              <div className="success-message" role="status">
                 {success}
               </div>
-
             )}
 
-            {/* FORM ERROR */}
             {error && !showForm && (
-
               <p className="form-error" role="alert">
                 {error}
               </p>
-
             )}
 
-            {/* ADD EQUIPMENT FORM */}
+            {/* EQUIPMENT FORM */}
             {showForm && (
-
               <form
                 className="equipment-form"
                 onSubmit={handleAddEquipment}
               >
-
-                <h3>Add New Equipment</h3>
+                <h3>
+                  {editingId
+                    ? "Edit Equipment"
+                    : "Add New Equipment"}
+                </h3>
 
                 <label htmlFor="equipmentName">
                   Equipment Name
@@ -573,14 +564,9 @@ function App() {
                 />
 
                 {error && (
-
-                  <p
-                    className="form-error"
-                    role="alert"
-                  >
+                  <p className="form-error" role="alert">
                     {error}
                   </p>
-
                 )}
 
                 <button
@@ -588,14 +574,15 @@ function App() {
                   className="add-button"
                   disabled={saving}
                 >
-                  {saving ? "Saving..." : "Save Equipment"}
+                  {saving
+                    ? "Saving..."
+                    : editingId
+                    ? "Update Equipment"
+                    : "Save Equipment"}
                 </button>
-
               </form>
-
             )}
 
-            {/* SEARCH */}
             <input
               className="search-input"
               type="search"
@@ -605,124 +592,92 @@ function App() {
               aria-label="Search equipment"
             />
 
-            {/* EQUIPMENT TABLE */}
             {loading ? (
-
               <div className="empty-message">
                 <p>Loading equipment...</p>
               </div>
-
             ) : filteredEquipment.length > 0 ? (
-
               <EquipmentTable
                 equipment={filteredEquipment}
+                onEdit={handleEditEquipment}
+                onDelete={handleDeleteEquipment}
+                deletingId={deletingId}
               />
-
             ) : (
-
               <div className="empty-message">
-
                 <h3>No equipment found</h3>
-
                 <p>
                   {search
                     ? "Try another equipment name or category."
                     : "No equipment has been registered yet."}
                 </p>
-
               </div>
-
             )}
 
           </section>
-
         )}
 
-        {/* ================================= */}
-        {/* BORROWING REQUESTS */}
-        {/* ================================= */}
-
+        {/* BORROWING */}
         {activePage === "Borrowing Requests" && (
-
           <Borrowing
             equipment={equipment}
             requests={borrowingRequests}
             setRequests={setBorrowingRequests}
           />
-
         )}
 
-        {/* ================================= */}
-        {/* RETURN MANAGEMENT */}
-        {/* ================================= */}
-
+        {/* RETURNS */}
         {activePage === "Return Management" && (
-
           <Returns
             equipment={equipment}
             setEquipment={setEquipment}
             requests={borrowingRequests}
             setRequests={setBorrowingRequests}
           />
-
         )}
 
-        {/* FOOTER */}
         <footer className="footer">
-
           ToolLoop Community Equipment Sharing System
-
         </footer>
 
       </main>
-
     </div>
   );
 }
 
-// =================================
-// EQUIPMENT TABLE COMPONENT
-// =================================
-
-function EquipmentTable({ equipment }) {
-
+// EQUIPMENT TABLE
+function EquipmentTable({
+  equipment,
+  onEdit,
+  onDelete,
+  deletingId,
+}) {
   return (
-
     <div className="table-container">
-
       <table>
-
         <thead>
-
           <tr>
             <th>Equipment Name</th>
             <th>Category</th>
             <th>Quantity</th>
             <th>Status</th>
+            {(onEdit || onDelete) && <th>Actions</th>}
           </tr>
-
         </thead>
 
         <tbody>
-
           {equipment.map((item) => {
-
             const availableQuantity = Number(
               item.availableQuantity ?? item.quantity ?? 0
             );
 
             return (
-
               <tr key={item.id}>
-
                 <td>{item.name}</td>
-
                 <td>{item.category}</td>
-
                 <td>{item.quantity}</td>
 
                 <td>
-
                   <span
                     className={
                       availableQuantity > 0
@@ -734,38 +689,51 @@ function EquipmentTable({ equipment }) {
                       ? "Available"
                       : "Unavailable"}
                   </span>
-
                 </td>
 
+                {(onEdit || onDelete) && (
+                  <td className="equipment-actions">
+                    {onEdit && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        onClick={() => onEdit(item)}
+                      >
+                        Edit
+                      </button>
+                    )}
+
+                    {onDelete && (
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={
+                          String(deletingId) === String(item.id)
+                        }
+                        onClick={() => onDelete(item)}
+                      >
+                        {String(deletingId) === String(item.id)
+                          ? "Deleting..."
+                          : "Delete"}
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
-
             );
-
           })}
-
         </tbody>
-
       </table>
-
     </div>
-
   );
 }
 
-// =================================
-// BORROWING TABLE COMPONENT
-// =================================
-
+// BORROWING TABLE
 function BorrowingTable({ requests }) {
-
   return (
-
     <div className="table-container">
-
       <table>
-
         <thead>
-
           <tr>
             <th>Borrower</th>
             <th>Equipment</th>
@@ -774,27 +742,17 @@ function BorrowingTable({ requests }) {
             <th>Return Date</th>
             <th>Status</th>
           </tr>
-
         </thead>
 
         <tbody>
-
           {requests.map((request) => (
-
             <tr key={request.id}>
-
               <td>{request.borrower}</td>
-
               <td>{request.equipment}</td>
-
               <td>{request.quantity}</td>
-
               <td>{request.borrowDate}</td>
-
               <td>{request.returnDate}</td>
-
               <td>
-
                 <span
                   className={
                     request.status === "Pending"
@@ -806,21 +764,13 @@ function BorrowingTable({ requests }) {
                 >
                   {request.status}
                 </span>
-
               </td>
-
             </tr>
-
           ))}
-
         </tbody>
-
       </table>
-
     </div>
-
   );
-
 }
 
 export default App;
