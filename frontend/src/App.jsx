@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 
 import Borrowing from "./components/Borrowing";
@@ -45,37 +45,38 @@ function App() {
   ];
 
   // LOAD EQUIPMENT
-  useEffect(() => {
-    async function loadEquipment() {
-      try {
-        setLoading(true);
-        setLoadError("");
+  const loadEquipment = useCallback(async () => {
+    try {
+      setLoading(true);
+      setLoadError("");
 
-        const data = await getEquipment();
+      const data = await getEquipment();
 
-        setEquipment(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error("Error loading equipment:", error);
+      setEquipment(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error loading equipment:", error);
 
-        setLoadError(
-          "Unable to load equipment. Please check your API connection."
-        );
-      } finally {
-        setLoading(false);
-      }
+      setLoadError(
+        "Unable to load equipment. Please check your API connection."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    loadEquipment();
   }, []);
 
+  useEffect(() => {
+    loadEquipment();
+  }, [loadEquipment]);
+
   // SEARCH
-  const filteredEquipment = equipment.filter((item) =>
-    (item.name || "")
-      .toLowerCase()
-      .includes(search.toLowerCase()) ||
-    (item.category || "")
-      .toLowerCase()
-      .includes(search.toLowerCase())
+  const filteredEquipment = equipment.filter(
+    (item) =>
+      (item.name || "")
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      (item.category || "")
+        .toLowerCase()
+        .includes(search.toLowerCase())
   );
 
   // ADD OR UPDATE EQUIPMENT
@@ -156,7 +157,6 @@ function App() {
       setSearch("");
       setShowForm(false);
       setEditingId(null);
-
     } catch (error) {
       console.error("Error saving equipment:", error);
       setError(error.message || "Unable to save equipment.");
@@ -208,7 +208,6 @@ function App() {
       );
 
       setSuccess("Equipment deleted successfully!");
-
     } catch (error) {
       console.error("Error deleting equipment:", error);
       setError(error.message || "Unable to delete equipment.");
@@ -313,16 +312,26 @@ function App() {
           </span>
         </header>
 
+        {/* GLOBAL LOADING STATE */}
         {loading && (
-          <p className="success-message">
+          <p className="success-message" role="status">
             Loading equipment...
           </p>
         )}
 
+        {/* API ERROR WITH RETRY */}
         {loadError && (
-          <p className="form-error" role="alert">
-            {loadError}
-          </p>
+          <div className="form-error" role="alert">
+            <p>{loadError}</p>
+
+            <button
+              type="button"
+              onClick={loadEquipment}
+              disabled={loading}
+            >
+              {loading ? "Retrying..." : "Try Again"}
+            </button>
+          </div>
         )}
 
         {/* DASHBOARD */}
@@ -402,7 +411,11 @@ function App() {
                 </button>
               </div>
 
-              {equipment.length === 0 ? (
+              {loading ? (
+                <div className="empty-message">
+                  <p>Loading equipment...</p>
+                </div>
+              ) : equipment.length === 0 ? (
                 <div className="empty-message">
                   <h3>No equipment found</h3>
                   <p>
@@ -752,6 +765,7 @@ function BorrowingTable({ requests }) {
               <td>{request.quantity}</td>
               <td>{request.borrowDate}</td>
               <td>{request.returnDate}</td>
+
               <td>
                 <span
                   className={
