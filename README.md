@@ -11,8 +11,8 @@ ToolLoop is a web-based equipment borrowing and management system that helps use
 
 | Member | Role |
 |---|---|
-| [Ailyn Albesa] | [Frontend] |
-| [Maricar Ofenia] | [Backend] |
+| Ailyn Albesa | Frontend |
+| Maricar Ofenia | Backend |
 
 ## Tech Stack
 
@@ -63,12 +63,12 @@ Open the local URL displayed in the frontend terminal.
 
 ## Environment Variables
 
-Configure these variables locally and in the appropriate hosting dashboards. The example values below are fake.
+Configure these variables locally and in the appropriate hosting dashboards. The example values below are placeholders only.
 
 | Name | What it is for | Example value |
 |---|---|---|
 | VITE_API_URL | Frontend address of the backend API | http://localhost:5000 |
-| MONGODB_URI | Backend connection to MongoDB Atlas | mongodb+srv://user:FAKE_PASSWORD@example.mongodb.net/toolloop |
+| MONGODB_URI | Backend connection to MongoDB Atlas | YOUR_MONGODB_CONNECTION_STRING |
 | CLIENT_URL | Allowed frontend origin for backend CORS | https://example.netlify.app |
 
 **Security:** Never commit real passwords, database connection strings, or API keys to GitHub. Keep secrets in local environment files or hosting environment settings. Use fake values in `.env.example`.
