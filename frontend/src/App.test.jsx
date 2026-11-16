@@ -49,12 +49,11 @@ describe("ToolLoop Frontend Tests", () => {
   });
 
   // F-T1: Dashboard renders correctly
-  // INTENTIONAL ERROR FOR CI FAILURE DEMONSTRATION
   it("F-T1: should display the ToolLoop dashboard", async () => {
     render(<App />);
 
     expect(
-      screen.getByText("Welcome to ToolLoop WRONG!")
+      screen.getByText("Welcome to ToolLoop!")
     ).toBeInTheDocument();
 
     expect(
