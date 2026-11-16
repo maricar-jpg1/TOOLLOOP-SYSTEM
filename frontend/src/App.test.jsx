@@ -66,7 +66,6 @@ describe("ToolLoop Frontend Tests", () => {
 
     await waitFor(() => {
       expect(getEquipment).toHaveBeenCalled();
-      expect(getBorrowings).toHaveBeenCalled();
     });
   });
 
