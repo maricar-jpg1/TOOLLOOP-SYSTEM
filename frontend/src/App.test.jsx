@@ -8,11 +8,19 @@ import {
 } from "@testing-library/react";
 
 import App from "./App";
-import { getEquipment, addEquipment } from "./services/api";
+import {
+  getEquipment,
+  addEquipment,
+  getBorrowings,
+} from "./services/api";
 
 vi.mock("./services/api", () => ({
   getEquipment: vi.fn(),
   addEquipment: vi.fn(),
+  updateEquipment: vi.fn(),
+  deleteEquipment: vi.fn(),
+  getBorrowings: vi.fn(),
+  addBorrowing: vi.fn(),
 }));
 
 const mockEquipment = [
@@ -32,6 +40,7 @@ describe("ToolLoop Frontend Tests", () => {
     vi.clearAllMocks();
 
     getEquipment.mockResolvedValue(mockEquipment);
+    getBorrowings.mockResolvedValue([]);
 
     addEquipment.mockImplementation(async (equipment) => ({
       id: "test-equipment-002",
@@ -80,23 +89,17 @@ describe("ToolLoop Frontend Tests", () => {
 
     fireEvent.change(
       screen.getByLabelText("Equipment Name"),
-      {
-        target: { value: "Welding Machine" },
-      }
+      { target: { value: "Welding Machine" } }
     );
 
     fireEvent.change(
       screen.getByLabelText("Category"),
-      {
-        target: { value: "Power Tools" },
-      }
+      { target: { value: "Power Tools" } }
     );
 
     fireEvent.change(
       screen.getByLabelText("Quantity"),
-      {
-        target: { value: "3" },
-      }
+      { target: { value: "3" } }
     );
 
     fireEvent.click(
