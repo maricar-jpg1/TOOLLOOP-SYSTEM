@@ -53,7 +53,7 @@ describe("ToolLoop Frontend Tests", () => {
     render(<App />);
 
     expect(
-   screen.getByText("Welcome to WrongName!")
+   screen.getByText("Welcome to ToolLoop!")
     ).toBeInTheDocument();
 
     expect(
