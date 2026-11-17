@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ToolLoop.Api.Models;
 using ToolLoop.Api.Repositories;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ============================================
@@ -20,6 +21,7 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 // ============================================
 
 builder.Services.AddScoped<IEquipmentRepository, MongoEquipmentRepository>();
+builder.Services.AddScoped<IBorrowingRepository, MongoBorrowingRepository>();
 
 // ============================================
 // CORS CONFIGURATION
@@ -385,6 +387,212 @@ app.MapDelete("/api/equipment/{id}", async (
         );
     }
 });
+
+
+
+// ============================================
+// BORROWING: GET ALL REQUESTS
+// ============================================
+
+app.MapGet("/api/borrowings", async (
+    IBorrowingRepository repository,
+    ILogger<Program> logger) =>
+{
+    try
+    {
+        var requests = await repository.GetAllAsync();
+        return Results.Ok(requests);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to retrieve borrowing requests.");
+        return Results.Problem(
+            title: "Failed to retrieve borrowing requests",
+            statusCode: 500
+        );
+    }
+});
+
+// ============================================
+// BORROWING: SUBMIT NEW REQUEST
+// ============================================
+
+app.MapPost("/api/borrowings", async (
+    Borrowing borrowing,
+    IBorrowingRepository borrowingRepository,
+    IEquipmentRepository equipmentRepository,
+    ILogger<Program> logger) =>
+{
+    if (string.IsNullOrWhiteSpace(borrowing.Borrower))
+        return Results.BadRequest(new { message = "Borrower name is required." });
+
+    if (!ObjectId.TryParse(borrowing.EquipmentId, out _))
+        return Results.BadRequest(new { message = "Invalid equipment ID." });
+
+    if (borrowing.Quantity < 1)
+        return Results.BadRequest(new { message = "Quantity must be greater than zero." });
+
+    if (!DateOnly.TryParse(borrowing.BorrowDate, out var borrowDate) ||
+        !DateOnly.TryParse(borrowing.ReturnDate, out var returnDate))
+        return Results.BadRequest(new { message = "Invalid borrowing or return date." });
+
+    if (returnDate < borrowDate)
+        return Results.BadRequest(new { message = "Return date cannot be earlier than borrowing date." });
+
+    try
+    {
+        var equipment = await equipmentRepository.GetByIdAsync(borrowing.EquipmentId);
+
+        if (equipment == null)
+            return Results.NotFound(new { message = "Equipment not found." });
+
+        var pendingRequests = await borrowingRepository.GetAllAsync();
+
+        var reservedQuantity = pendingRequests
+            .Where(r => r.EquipmentId == borrowing.EquipmentId && r.Status == "Pending")
+            .Sum(r => r.Quantity);
+
+        var available = equipment.AvailableQuantity - reservedQuantity;
+
+        if (borrowing.Quantity > available)
+            return Results.BadRequest(new
+            {
+                message = $"Only {Math.Max(available, 0)} unit(s) are available."
+            });
+
+        borrowing.Id = null;
+        borrowing.Borrower = borrowing.Borrower.Trim();
+        borrowing.Equipment = equipment.Name;
+        borrowing.Status = "Pending";
+        borrowing.ActualReturnDate = null;
+
+        var saved = await borrowingRepository.AddAsync(borrowing);
+
+        return Results.Created($"/api/borrowings/{saved.Id}", saved);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to save borrowing request.");
+        return Results.Problem(
+            title: "Failed to save borrowing request",
+            statusCode: 500
+        );
+    }
+});
+
+// ============================================
+// BORROWING: APPROVE REQUEST
+// ============================================
+
+app.MapPut("/api/borrowings/{id}/approve", async (
+    string id,
+    IBorrowingRepository borrowingRepository,
+    IEquipmentRepository equipmentRepository,
+    ILogger<Program> logger) =>
+{
+    if (!ObjectId.TryParse(id, out _))
+        return Results.BadRequest(new { message = "Invalid borrowing ID." });
+
+    try
+    {
+        var request = await borrowingRepository.GetByIdAsync(id);
+
+        if (request == null)
+            return Results.NotFound(new { message = "Borrowing request not found." });
+
+        if (request.Status != "Pending")
+            return Results.BadRequest(new { message = "Only pending requests can be approved." });
+
+        var equipment = await equipmentRepository.GetByIdAsync(request.EquipmentId);
+
+        if (equipment == null)
+            return Results.NotFound(new { message = "Equipment not found." });
+
+        if (equipment.AvailableQuantity < request.Quantity)
+            return Results.BadRequest(new { message = "Not enough available equipment." });
+
+        equipment.AvailableQuantity -= request.Quantity;
+
+        var updatedEquipment = await equipmentRepository.UpdateAsync(
+            equipment.Id!,
+            equipment
+        );
+
+        if (updatedEquipment == null)
+            return Results.Problem(title: "Failed to update equipment quantity.", statusCode: 500);
+
+        request.Status = "Borrowed";
+
+        var updatedRequest = await borrowingRepository.UpdateAsync(id, request);
+
+        return Results.Ok(updatedRequest);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to approve borrowing request {Id}.", id);
+        return Results.Problem(
+            title: "Failed to approve borrowing request",
+            statusCode: 500
+        );
+    }
+});
+
+// ============================================
+// BORROWING: MARK AS RETURNED
+// ============================================
+
+app.MapPut("/api/borrowings/{id}/return", async (
+    string id,
+    IBorrowingRepository borrowingRepository,
+    IEquipmentRepository equipmentRepository,
+    ILogger<Program> logger) =>
+{
+    if (!ObjectId.TryParse(id, out _))
+        return Results.BadRequest(new { message = "Invalid borrowing ID." });
+
+    try
+    {
+        var request = await borrowingRepository.GetByIdAsync(id);
+
+        if (request == null)
+            return Results.NotFound(new { message = "Borrowing request not found." });
+
+        if (request.Status != "Borrowed")
+            return Results.BadRequest(new { message = "Only borrowed equipment can be returned." });
+
+        var equipment = await equipmentRepository.GetByIdAsync(request.EquipmentId);
+
+        if (equipment == null)
+            return Results.NotFound(new { message = "Equipment not found." });
+
+        equipment.AvailableQuantity += request.Quantity;
+
+        var updatedEquipment = await equipmentRepository.UpdateAsync(
+            equipment.Id!,
+            equipment
+        );
+
+        if (updatedEquipment == null)
+            return Results.Problem(title: "Failed to update equipment quantity.", statusCode: 500);
+
+        request.Status = "Returned";
+        request.ActualReturnDate = DateOnly.FromDateTime(DateTime.UtcNow)
+            .ToString("yyyy-MM-dd");
+
+        var updatedRequest = await borrowingRepository.UpdateAsync(id, request);
+
+        return Results.Ok(updatedRequest);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to record equipment return {Id}.", id);
+        return Results.Problem(
+            title: "Failed to record equipment return",
+            statusCode: 500
+        );
+    }
+});
+
 
 // ============================================
 // START APPLICATION

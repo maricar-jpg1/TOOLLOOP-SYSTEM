@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { addBorrowing } from "../services/api";
 
 function Borrowing({ equipment, requests, setRequests }) {
   const [form, setForm] = useState({
@@ -12,19 +13,15 @@ function Borrowing({ equipment, requests, setRequests }) {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [saving, setSaving] = useState(false);
 
   function handleChange(e) {
     const { name, value } = e.target;
-
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    setForm((previous) => ({ ...previous, [name]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-
     setError("");
     setSuccess("");
 
@@ -40,14 +37,8 @@ function Borrowing({ equipment, requests, setRequests }) {
 
     const quantity = Number(form.quantity);
 
-    if (
-      form.quantity === "" ||
-      !Number.isInteger(quantity) ||
-      quantity < 1
-    ) {
-      setError(
-        "Quantity must be a whole number greater than zero."
-      );
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      setError("Quantity must be a whole number greater than zero.");
       return;
     }
 
@@ -57,9 +48,7 @@ function Borrowing({ equipment, requests, setRequests }) {
     }
 
     if (form.returnDate < form.borrowDate) {
-      setError(
-        "Return date cannot be earlier than borrowing date."
-      );
+      setError("Return date cannot be earlier than borrowing date.");
       return;
     }
 
@@ -75,76 +64,64 @@ function Borrowing({ equipment, requests, setRequests }) {
     const reservedQuantity = requests
       .filter(
         (request) =>
-          request.equipmentId === form.equipmentId &&
+          String(request.equipmentId) === form.equipmentId &&
           request.status === "Pending"
       )
-      .reduce(
-        (total, request) => total + request.quantity,
-        0
-      );
+      .reduce((total, request) => total + Number(request.quantity), 0);
 
     const availableQuantity =
-      selectedEquipment.quantity - reservedQuantity;
+      Number(selectedEquipment.availableQuantity ?? selectedEquipment.quantity) -
+      reservedQuantity;
 
     if (quantity > availableQuantity) {
-      setError(
-        `Only ${Math.max(availableQuantity, 0)} unit(s) are available.`
-      );
+      setError(`Only ${Math.max(availableQuantity, 0)} unit(s) are available.`);
       return;
     }
 
-    const newRequest = {
-      id: Date.now(),
-      borrower: form.borrower.trim(),
-      equipmentId: form.equipmentId,
-      equipment: selectedEquipment.name,
-      quantity,
-      borrowDate: form.borrowDate,
-      returnDate: form.returnDate,
-      status: "Pending",
-    };
+    try {
+      setSaving(true);
 
-    setRequests((previous) => [
-      ...previous,
-      newRequest,
-    ]);
+      const savedRequest = await addBorrowing({
+        borrower: form.borrower.trim(),
+        equipmentId: form.equipmentId,
+        equipment: selectedEquipment.name,
+        quantity,
+        borrowDate: form.borrowDate,
+        returnDate: form.returnDate,
+      });
 
-    setForm({
-      borrower: "",
-      equipmentId: "",
-      quantity: "1",
-      borrowDate: "",
-      returnDate: "",
-    });
+      setRequests((previous) => [...previous, savedRequest]);
 
-    setSuccess(
-      "Borrowing request submitted successfully!"
-    );
+      setForm({
+        borrower: "",
+        equipmentId: "",
+        quantity: "1",
+        borrowDate: "",
+        returnDate: "",
+      });
+
+      setSuccess("Borrowing request saved successfully!");
+    } catch (err) {
+      console.error("Borrowing request error:", err);
+      setError(err.message || "Unable to save borrowing request.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <section className="content-card">
-
       <div className="section-header">
         <div>
           <h2>Borrowing Requests</h2>
-          <p>
-            Manage community equipment borrowing requests.
-          </p>
+          <p>Manage community equipment borrowing requests.</p>
         </div>
       </div>
 
-      {/* BORROWING FORM */}
-      <form
-        className="equipment-form"
-        onSubmit={handleSubmit}
-      >
+      <form className="equipment-form" onSubmit={handleSubmit}>
         <h3>New Borrowing Request</h3>
 
-        <label htmlFor="borrower">
-          Borrower Name
-        </label>
-
+        <label htmlFor="borrower">Borrower Name</label>
         <input
           id="borrower"
           name="borrower"
@@ -154,10 +131,7 @@ function Borrowing({ equipment, requests, setRequests }) {
           onChange={handleChange}
         />
 
-        <label htmlFor="equipmentId">
-          Select Equipment
-        </label>
-
+        <label htmlFor="equipmentId">Select Equipment</label>
         <select
           id="equipmentId"
           name="equipmentId"
@@ -165,22 +139,18 @@ function Borrowing({ equipment, requests, setRequests }) {
           onChange={handleChange}
         >
           <option value="">Select equipment</option>
-
           {equipment.map((item) => (
             <option
               key={item.id}
               value={String(item.id)}
-              disabled={item.quantity <= 0}
+              disabled={Number(item.availableQuantity ?? item.quantity) <= 0}
             >
-              {item.name} ({item.quantity} units)
+              {item.name} ({item.availableQuantity ?? item.quantity} available)
             </option>
           ))}
         </select>
 
-        <label htmlFor="borrowQuantity">
-          Borrowing Quantity
-        </label>
-
+        <label htmlFor="borrowQuantity">Borrowing Quantity</label>
         <input
           id="borrowQuantity"
           name="quantity"
@@ -191,10 +161,7 @@ function Borrowing({ equipment, requests, setRequests }) {
           onChange={handleChange}
         />
 
-        <label htmlFor="borrowDate">
-          Borrowing Date
-        </label>
-
+        <label htmlFor="borrowDate">Borrowing Date</label>
         <input
           id="borrowDate"
           name="borrowDate"
@@ -203,10 +170,7 @@ function Borrowing({ equipment, requests, setRequests }) {
           onChange={handleChange}
         />
 
-        <label htmlFor="returnDate">
-          Expected Return Date
-        </label>
-
+        <label htmlFor="returnDate">Expected Return Date</label>
         <input
           id="returnDate"
           name="returnDate"
@@ -215,48 +179,31 @@ function Borrowing({ equipment, requests, setRequests }) {
           onChange={handleChange}
         />
 
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-
-        {success && (
-          <p className="success-message" role="status">
-            {success}
-          </p>
-        )}
+        {error && <p className="form-error" role="alert">{error}</p>}
+        {success && <p className="success-message" role="status">{success}</p>}
 
         <button
           type="submit"
           className="add-button"
-          disabled={equipment.length === 0}
+          disabled={saving || equipment.length === 0}
         >
-          Submit Borrowing Request
+          {saving ? "Submitting..." : "Submit Borrowing Request"}
         </button>
-
       </form>
 
-      {/* BORROWING RECORDS */}
       <div className="borrowing-records">
-
         <div className="section-header">
           <div>
             <h3>Borrowing Records</h3>
             <p>List of submitted borrowing requests.</p>
           </div>
-
-          <span className="record-count">
-            {requests.length} Records
-          </span>
+          <span className="record-count">{requests.length} Records</span>
         </div>
 
         {requests.length === 0 ? (
           <div className="empty-message">
             <h3>No borrowing requests yet</h3>
-            <p>
-              Submitted borrowing requests will appear here.
-            </p>
+            <p>Submitted borrowing requests will appear here.</p>
           </div>
         ) : (
           <div className="table-container">
@@ -271,7 +218,6 @@ function Borrowing({ equipment, requests, setRequests }) {
                   <th>Status</th>
                 </tr>
               </thead>
-
               <tbody>
                 {requests.map((request) => (
                   <tr key={request.id}>
@@ -281,9 +227,7 @@ function Borrowing({ equipment, requests, setRequests }) {
                     <td>{request.borrowDate}</td>
                     <td>{request.returnDate}</td>
                     <td>
-                      <span className="pending-badge">
-                        {request.status}
-                      </span>
+                      <span className="pending-badge">{request.status}</span>
                     </td>
                   </tr>
                 ))}
@@ -291,9 +235,7 @@ function Borrowing({ equipment, requests, setRequests }) {
             </table>
           </div>
         )}
-
       </div>
-
     </section>
   );
 }
