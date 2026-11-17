@@ -1,91 +1,92 @@
 
+import { useState } from "react";
+import {
+  updateBorrowing,
+  getEquipment,
+} from "../services/api";
+
 function Returns({
   equipment,
   setEquipment,
   requests,
   setRequests,
 }) {
-  function approveRequest(requestId) {
+  const [processingId, setProcessingId] = useState(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  async function approveRequest(requestId) {
     const request = requests.find(
-      (item) => item.id === requestId
+      (item) => String(item.id) === String(requestId)
     );
 
-    if (!request || request.status !== "Pending") {
-      return;
+    if (!request || request.status !== "Pending") return;
+
+    try {
+      setProcessingId(requestId);
+      setError("");
+      setSuccess("");
+
+      const updatedRequest = await updateBorrowing(
+        requestId,
+        "approve"
+      );
+
+      setRequests((previous) =>
+        previous.map((item) =>
+          String(item.id) === String(requestId)
+            ? updatedRequest
+            : item
+        )
+      );
+
+      const updatedEquipment = await getEquipment();
+      setEquipment(updatedEquipment);
+
+      setSuccess("Borrowing request approved successfully!");
+    } catch (err) {
+      console.error("Approval error:", err);
+      setError(err.message || "Unable to approve request.");
+    } finally {
+      setProcessingId(null);
     }
-
-    const selectedEquipment = equipment.find(
-      (item) => String(item.id) === request.equipmentId
-    );
-
-    if (!selectedEquipment) {
-      alert("Equipment record not found.");
-      return;
-    }
-
-    if (selectedEquipment.quantity < request.quantity) {
-      alert("Not enough available equipment to approve this request.");
-      return;
-    }
-
-    setEquipment((previous) =>
-      previous.map((item) =>
-        String(item.id) === request.equipmentId
-          ? {
-              ...item,
-              quantity: item.quantity - request.quantity,
-              status:
-                item.quantity - request.quantity > 0
-                  ? "Available"
-                  : "Unavailable",
-            }
-          : item
-      )
-    );
-
-    setRequests((previous) =>
-      previous.map((item) =>
-        item.id === requestId
-          ? { ...item, status: "Borrowed" }
-          : item
-      )
-    );
   }
 
-  function markAsReturned(requestId) {
+  async function markAsReturned(requestId) {
     const request = requests.find(
-      (item) => item.id === requestId
+      (item) => String(item.id) === String(requestId)
     );
 
-    if (!request || request.status !== "Borrowed") {
-      return;
+    if (!request || request.status !== "Borrowed") return;
+
+    try {
+      setProcessingId(requestId);
+      setError("");
+      setSuccess("");
+
+      const updatedRequest = await updateBorrowing(
+        requestId,
+        "return"
+      );
+
+      setRequests((previous) =>
+        previous.map((item) =>
+          String(item.id) === String(requestId)
+            ? updatedRequest
+            : item
+        )
+      );
+
+      const updatedEquipment = await getEquipment();
+      setEquipment(updatedEquipment);
+
+      setSuccess("Equipment return recorded successfully!");
+    } catch (err) {
+      console.error("Return error:", err);
+      setError(err.message || "Unable to record equipment return.");
+    } finally {
+      setProcessingId(null);
     }
-
-    setEquipment((previous) =>
-      previous.map((item) =>
-        String(item.id) === request.equipmentId
-          ? {
-              ...item,
-              quantity: item.quantity + request.quantity,
-              status: "Available",
-            }
-          : item
-      )
-    );
-
-    setRequests((previous) =>
-      previous.map((item) =>
-        item.id === requestId
-          ? {
-              ...item,
-              status: "Returned",
-              actualReturnDate: new Date()
-                .toISOString()
-                .split("T")[0],
-            }
-          : item
-      )
-    );
   }
 
   const pendingRequests = requests.filter(
@@ -118,9 +119,20 @@ function Returns({
         </div>
       </div>
 
+      {error && (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      {success && (
+        <p className="success-message" role="status">
+          {success}
+        </p>
+      )}
+
       {/* SUMMARY */}
       <div className="return-summary">
-
         <div className="return-stat">
           <span>Pending Requests</span>
           <strong>{pendingRequests.length}</strong>
@@ -135,12 +147,10 @@ function Returns({
           <span>Returned</span>
           <strong>{returnedRequests.length}</strong>
         </div>
-
       </div>
 
       {/* PENDING REQUESTS */}
       <div className="return-section">
-
         <h3>Pending Borrowing Requests</h3>
         <p className="section-description">
           Review and approve equipment borrowing requests.
@@ -176,9 +186,12 @@ function Returns({
                     <td>
                       <button
                         className="approve-button"
+                        disabled={processingId === request.id}
                         onClick={() => approveRequest(request.id)}
                       >
-                        Approve
+                        {processingId === request.id
+                          ? "Processing..."
+                          : "Approve"}
                       </button>
                     </td>
                   </tr>
@@ -187,12 +200,10 @@ function Returns({
             </table>
           </div>
         )}
-
       </div>
 
       {/* BORROWED EQUIPMENT */}
       <div className="return-section">
-
         <h3>Currently Borrowed Equipment</h3>
         <p className="section-description">
           Track equipment that has been released to borrowers.
@@ -226,9 +237,12 @@ function Returns({
                     <td>
                       <button
                         className="return-button"
+                        disabled={processingId === request.id}
                         onClick={() => markAsReturned(request.id)}
                       >
-                        Mark as Returned
+                        {processingId === request.id
+                          ? "Processing..."
+                          : "Mark as Returned"}
                       </button>
                     </td>
                   </tr>
@@ -237,12 +251,10 @@ function Returns({
             </table>
           </div>
         )}
-
       </div>
 
       {/* RETURNED RECORDS */}
       <div className="return-section">
-
         <h3>Returned Equipment Records</h3>
         <p className="section-description">
           History of completed equipment returns.
@@ -286,7 +298,6 @@ function Returns({
             </table>
           </div>
         )}
-
       </div>
 
     </section>
